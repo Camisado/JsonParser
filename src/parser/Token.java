@@ -8,6 +8,8 @@ public interface Token {
 	START_ARRAY = "[",
 	END_ARRAY = "]",
 	QUOTES = "\"",
-	COLON = ":";
+	COLON = ":",
+	COMMA = ",",
+	DOT = ".";
 
 }

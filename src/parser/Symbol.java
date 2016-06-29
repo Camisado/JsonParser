@@ -15,9 +15,9 @@ public class Symbol {
 
 	public void increase () {
 		index++;
-		prev = data[index-1];
-		current = data[index];
-		next = data[index+1];
+		prev = index - 1 < 0 ? "" : data[index - 1];
+		current = index == data.length ? "" : data[index];
+		next = index + 1 > data.length - 1 ? "" : data[index + 1];
 	}
 
 	public void increase (int count) {

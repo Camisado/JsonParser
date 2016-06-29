@@ -1,9 +1,6 @@
 package parser;
 
-import jsonEntity.JsonArray;
-import jsonEntity.JsonObject;
-import jsonEntity.JsonString;
-import jsonEntity.JsonValue;
+import jsonEntity.*;
 
 import java.util.*;
 
@@ -21,21 +18,30 @@ public class Parser {
 	public JsonObject parse () {
 		JsonObject object = null;
 
-		switch (symbol.getCurrent()) {
-			case Token.START_OBJECT : {
-				object = readObject();
-				break;
+		try {
+			switch (symbol.getCurrent()) {
+				case Token.START_OBJECT : {
+					object = readObject();
+					if (!symbol.getCurrent().equals(Token.END_OBJECT)) {
+						throw new Exception("unexpected symbol: " + symbol.getCurrent());
+					}
+					symbol.increase();
+					break;
+				}
+				case Token.START_ARRAY : {
+					symbol.increase();
+					readArray();
+					break;
+				}
+				default: {
+					System.out.println("unexpected symbol");
+					break;
+				}
 			}
-			case Token.START_ARRAY : {
-				symbol.increase();
-				readArray();
-				break;
-			}
-			default: {
-				System.out.println("unexpected symbol");
-				break;
-			}
+		} catch (Exception e) {
+			e.printStackTrace();
 		}
+
 
 		System.out.println(Arrays.toString(symbol.getData()));
 
@@ -59,18 +65,22 @@ public class Parser {
 		return result;
 	}
 
-	private JsonObject readObject () {
+	private JsonObject readObject () throws Exception {
 		symbol.increase();
 		JsonObject object = new JsonObject();
-		try {
-			object.setKey(readKey());
-			object.setValue(readValue());
-		} catch (Exception e) {
-			e.printStackTrace();
-		}
-
+		addProperty(object);
 
 		return object;
+	}
+
+	private void addProperty (JsonObject object) throws Exception {
+		String key = readKey();
+		JsonValue value = readValue();
+		object.getProperties().put(key, value);
+		if (symbol.getCurrent().equals(Token.COMMA)) {
+			symbol.increase();
+			addProperty(object);
+		}
 	}
 
 	private String readKey() throws Exception {
@@ -106,11 +116,16 @@ public class Parser {
 			case Token.QUOTES : {
 				symbol.increase();
 				String str = readString(Token.QUOTES);
+				symbol.increase();
 				value = new JsonString(str);
 				break;
 			}
 			case Token.START_OBJECT : {
-				value = new JsonObject();
+				value = readObject();
+				if (!symbol.getCurrent().equals(Token.END_OBJECT)) {
+					throw new Exception("unexpected symbol: " + symbol.getCurrent());
+				}
+				symbol.increase();
 				break;
 			}
 			case Token.START_ARRAY : {
@@ -118,6 +133,14 @@ public class Parser {
 				break;
 			}
 			default : {
+				if (isNumeric(symbol.getCurrent())) {
+					String numberStr = readNumber();
+					if (isNumeric(numberStr)) {
+						value = new JsonNumber(Double.parseDouble(numberStr));
+					} else {
+						throw new Exception("too many '" + Token.DOT + "' in number");
+					}
+				}
 				break;
 			}
 		}
@@ -125,14 +148,39 @@ public class Parser {
 		return value;
 	}
 
+	private boolean isNumeric (String symbol) {
+		try {
+			Number number = Double.parseDouble(symbol);
+		} catch(NumberFormatException nfe) {
+			return false;
+		}
+		return true;
+	}
+
+	private String readNumber () throws Exception {
+		String numberStr = "";
+
+		if (isNumeric(symbol.getCurrent()) || symbol.getCurrent().equals(Token.DOT)) {
+			numberStr += symbol.getCurrent();
+			symbol.increase();
+			numberStr += readNumber();
+		} else if (symbol.getCurrent().equals(Token.COMMA) || symbol.getCurrent().equals(Token.END_OBJECT)) {
+			return numberStr;
+		} else {
+			throw new Exception("unexpected symbol: " + symbol.getCurrent());
+		}
+
+		return numberStr;
+	}
+
 	private String readString (String endToken) throws Exception {
 		String token = "";
 
-		if (Character.isLetterOrDigit(symbol.getCurrent().charAt(0)) && !symbol.getCurrent().equals(endToken)) {
+		if (Character.isLetterOrDigit(symbol.getCurrent().charAt(0))) {
 			token += symbol.getCurrent();
 			symbol.increase();
 			token += readString(endToken);
-		}else if(!Character.isLetterOrDigit(symbol.getCurrent().charAt(0)) && !symbol.getCurrent().equals(endToken)) {
+		}else if(!symbol.getCurrent().equals(endToken)) {
 			throw new Exception("unexpected symbol: " + symbol.getCurrent());
 		}
 

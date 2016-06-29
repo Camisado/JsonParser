@@ -1,15 +1,12 @@
 package jsonEntity;
 
+import java.util.HashMap;
+
 public class JsonObject extends JsonValue<JsonValue> {
 
-	private String key;
+	private HashMap<String, JsonValue> properties = new HashMap<String, JsonValue>();
 
-	public String getKey() {
-		return key;
+	public HashMap<String, JsonValue> getProperties() {
+		return properties;
 	}
-
-	public void setKey(String key) {
-		this.key = key;
-	}
-
 }

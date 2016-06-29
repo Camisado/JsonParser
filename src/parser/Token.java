@@ -7,6 +7,7 @@ public interface Token {
 	END_OBJECT = "}",
 	START_ARRAY = "[",
 	END_ARRAY = "]",
-	QUOTES = "\"";
+	QUOTES = "\"",
+	COLON = ":";
 
 }

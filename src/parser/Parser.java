@@ -1,6 +1,8 @@
 package parser;
 
+import jsonEntity.JsonArray;
 import jsonEntity.JsonObject;
+import jsonEntity.JsonString;
 import jsonEntity.JsonValue;
 
 import java.util.*;
@@ -8,26 +10,24 @@ import java.util.*;
 public class Parser {
 
 	private String source;
-	private String[] data;
-	private int index = 0;
-	private String current;
-	private String output = "";
+	private Symbol symbol;
 
 	public Parser(String source) {
 		this.source = source;
-		data = this.source.trim().split("");
-		data = removeNotJsonSymbols();
+		String[] data = removeNotJsonSymbols(this.source.trim().split(""));
+		symbol = new Symbol(data);
 	}
 
-	public String parse () {
-		current = data[index];
+	public JsonObject parse () {
+		JsonObject object = null;
 
-		switch (current) {
+		switch (symbol.getCurrent()) {
 			case Token.START_OBJECT : {
-				readObject();
+				object = readObject();
 				break;
 			}
 			case Token.START_ARRAY : {
+				symbol.increase();
 				readArray();
 				break;
 			}
@@ -37,12 +37,12 @@ public class Parser {
 			}
 		}
 
-		System.out.println(Arrays.toString(data));
+		System.out.println(Arrays.toString(symbol.getData()));
 
-		return output;
+		return object;
 	}
 
-	private String[] removeNotJsonSymbols () {
+	private String[] removeNotJsonSymbols (String[] data) {
 		List<String> list = new ArrayList<String>(Arrays.asList(data));
 		List<String> notJsonSymbols = new ArrayList<String>(Arrays.asList(new String[]{"\r", "\n", "\t", " "}));
 
@@ -59,44 +59,83 @@ public class Parser {
 		return result;
 	}
 
-	private void increase () {
-		index++;
-		current = data[index];
-	}
-
 	private JsonObject readObject () {
+		symbol.increase();
 		JsonObject object = new JsonObject();
-		increase();
-		if (current.equals(Token.QUOTES)) {
+		try {
 			object.setKey(readKey());
+			object.setValue(readValue());
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+
+
+		return object;
+	}
+
+	private String readKey() throws Exception {
+		String key = null;
+
+		if (symbol.getCurrent().equals(Token.QUOTES)) {
+			symbol.increase();
+			key = readString(Token.QUOTES);
+			symbol.increase();
 		} else {
-			System.out.println("unexpected symbol");
+			throw new Exception("unexpected symbol: " + symbol.getCurrent());
 		}
 
-	}
+		checkColon();
 
-	private void readArray() {
-		output += "start array";
-	}
-
-	private String readKey () {
-		String key = "";
-		while (Character.isLetterOrDigit(current.charAt(0))) {
-			key += current;
-			increase();
-		}
 		return key;
 	}
 
-	private JsonValue readValue () {
-		JsonValue value;
+	private void checkColon () throws Exception {
+		if (symbol.getCurrent().equals(Token.COLON)) {
+			symbol.increase();
+		} else {
+			throw new Exception("unexpected symbol: " + symbol.getCurrent());
+		}
+	}
 
-		switch (current) {
+	private void readArray() {}
+
+	private JsonValue readValue () throws Exception {
+		JsonValue value = null;
+
+		switch (symbol.getCurrent()) {
 			case Token.QUOTES : {
+				symbol.increase();
+				String str = readString(Token.QUOTES);
+				value = new JsonString(str);
+				break;
+			}
+			case Token.START_OBJECT : {
+				value = new JsonObject();
+				break;
+			}
+			case Token.START_ARRAY : {
+				value = new JsonArray();
+				break;
+			}
+			default : {
 				break;
 			}
 		}
 
 		return value;
+	}
+
+	private String readString (String endToken) throws Exception {
+		String token = "";
+
+		if (Character.isLetterOrDigit(symbol.getCurrent().charAt(0)) && !symbol.getCurrent().equals(endToken)) {
+			token += symbol.getCurrent();
+			symbol.increase();
+			token += readString(endToken);
+		}else if(!Character.isLetterOrDigit(symbol.getCurrent().charAt(0)) && !symbol.getCurrent().equals(endToken)) {
+			throw new Exception("unexpected symbol: " + symbol.getCurrent());
+		}
+
+		return token;
 	}
 }
